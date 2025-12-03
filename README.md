@@ -125,7 +125,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-Made with ❤️ by [Your Name](https://github.com/muhammedfayazp)
+Made with ❤️ by [Muhammed Fayaz](https://github.com/muhammedfayazp)
 
 **[Live Demo](https://personal-finance-tracker-nine-sigma.vercel.app/)** | **[Report Bug](https://github.com/muhammedfayazp/personal-finance-tracker/issues)** | **[Request Feature](https://github.com/muhammedfayazp/personal-finance-tracker/issues)**
 
