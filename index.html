@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Finance Tracker</title>
-
-    <!-- React + Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/recharts@2.5.0/dist/Recharts.js"></script>
     <style>
         * {
             margin: 0;
@@ -18,8 +16,7 @@
             box-sizing: border-box;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-                Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
         }
         .glass-effect {
             background: rgba(255, 255, 255, 0.95);
@@ -28,871 +25,594 @@
         }
     </style>
 </head>
-
 <body>
-<div id="root"></div>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-<script type="text/babel">
-const { useState, useEffect } = React;
-
-function FinanceTracker() {
-    const [income, setIncome] = useState({
-        monthly: 0,
-        currency: "USD",
-    });
-
-    const [expenses, setExpenses] = useState({
-        rent: 0,
-        indiaTransfer: 0,
-        others: [],
-    });
-
-    const [emis, setEmis] = useState([]);
-    const [extraPay, setExtraPay] = useState(0);
-
-    const [newEmi, setNewEmi] = useState({
-        name: "",
-        amount: 0,
-        remainingMonths: 0,
-        totalAmount: 0,
-        principalRemaining: 0,
-        interestRate: 0,
-    });
-
-    const [newExpense, setNewExpense] = useState({
-        name: "",
-        amount: 0,
-    });
-
-    const [activeTab, setActiveTab] = useState("dashboard");
-
-    /* ----------------------------------------
-       LOAD FROM LOCAL STORAGE
-    ------------------------------------------- */
-    useEffect(() => {
-        const saved = localStorage.getItem("financeData");
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            setIncome(parsed.income || income);
-            setExpenses(parsed.expenses || expenses);
-            setEmis(parsed.emis || []);
-        }
-    }, []);
-
-    /* ----------------------------------------
-       SAVE TO LOCAL STORAGE
-    ------------------------------------------- */
-    useEffect(() => {
-        const data = { income, expenses, emis };
-        localStorage.setItem("financeData", JSON.stringify(data));
-    }, [income, expenses, emis]);
-
-    /* ----------------------------------------
-       HELPERS
-    ------------------------------------------- */
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: income.currency,
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2,
-        }).format(amount);
-    };
-
-    const totalOtherExpenses = expenses.others.reduce(
-        (sum, e) => sum + e.amount,
-        0
-    );
-
-    const totalExpenses =
-        expenses.rent + expenses.indiaTransfer + totalOtherExpenses;
-
-    const totalEmiAmount = emis.reduce((sum, e) => sum + e.amount, 0);
-
-    const monthlyBalance = income.monthly - totalExpenses - totalEmiAmount;
-
-    /* ----------------------------------------
-       ADD OTHER EXPENSE
-    ------------------------------------------- */
-    const addOtherExpense = () => {
-        if (newExpense.name && newExpense.amount > 0) {
-            setExpenses({
-                ...expenses,
-                others: [
-                    ...expenses.others,
-                    { ...newExpense, id: Date.now() },
-                ],
+        function FinanceTracker() {
+            const [income, setIncome] = useState({
+                monthly: 0,
+                currency: 'USD'
             });
-            setNewExpense({ name: "", amount: 0 });
-        }
-    };
 
-    const removeOtherExpense = (id) => {
-        setExpenses({
-            ...expenses,
-            others: expenses.others.filter((e) => e.id !== id),
-        });
-    };
+            const [expenses, setExpenses] = useState({
+                rent: 0,
+                indiaTransfer: 0,
+                others: []
+            });
 
-    /* ----------------------------------------
-       ADD EMI — WITH AUTO CALCULATION
-    ------------------------------------------- */
-    const addEmi = () => {
-        let emi = { ...newEmi };
-
-        // Auto calculate missing fields
-        if (
-            emi.principalRemaining === 0 &&
-            emi.amount > 0 &&
-            emi.remainingMonths > 0
-        ) {
-            emi.principalRemaining = emi.amount * emi.remainingMonths;
-        }
-
-        if (
-            emi.amount === 0 &&
-            emi.principalRemaining > 0 &&
-            emi.remainingMonths > 0
-        ) {
-            emi.amount = Math.round(
-                emi.principalRemaining / emi.remainingMonths
-            );
-        }
-
-        if (
-            emi.remainingMonths === 0 &&
-            emi.principalRemaining > 0 &&
-            emi.amount > 0
-        ) {
-            emi.remainingMonths = Math.ceil(
-                emi.principalRemaining / emi.amount
-            );
-        }
-
-        if (emi.name && emi.amount > 0) {
-            setEmis([
-                ...emis,
-                { ...emi, id: Date.now(), isEditing: false },
-            ]);
-            setNewEmi({
-                name: "",
+            const [emis, setEmis] = useState([]);
+            const [newEmi, setNewEmi] = useState({
+                name: '',
                 amount: 0,
                 remainingMonths: 0,
                 totalAmount: 0,
-                principalRemaining: 0,
-                interestRate: 0,
+                interestRate: 0
             });
-        }
-    };
 
-    const removeEmi = (id) => {
-        setEmis(emis.filter((e) => e.id !== id));
-    };
+            const [newExpense, setNewExpense] = useState({
+                name: '',
+                amount: 0
+            });
 
-    /* ----------------------------------------
-       INLINE EMI EDITING
-    ------------------------------------------- */
-    const updateEmiField = (id, field, value) => {
-        setEmis(
-            emis.map((e) =>
-                e.id === id ? { ...e, [field]: value } : e
-            )
-        );
-    };
+            const [activeTab, setActiveTab] = useState('dashboard');
 
-    const recalcEmi = (id) => {
-        setEmis(
-            emis.map((e) => {
-                if (e.id !== id) return e;
-                let updated = { ...e };
+            // Load data from localStorage on mount
+            useEffect(() => {
+                const savedData = localStorage.getItem('financeData');
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    setIncome(parsed.income || { monthly: 0, currency: 'USD' });
+                    setExpenses(parsed.expenses || { rent: 0, indiaTransfer: 0, others: [] });
+                    setEmis(parsed.emis || []);
+                }
+            }, []);
 
-                if (updated.principalRemaining && updated.remainingMonths)
-                    updated.amount = Math.round(
-                        updated.principalRemaining / updated.remainingMonths
-                    );
+            // Save data to localStorage whenever it changes
+            useEffect(() => {
+                const dataToSave = { income, expenses, emis };
+                localStorage.setItem('financeData', JSON.stringify(dataToSave));
+            }, [income, expenses, emis]);
 
-                if (updated.amount && updated.remainingMonths)
-                    updated.principalRemaining =
-                        updated.amount * updated.remainingMonths;
+            const totalExpenses = expenses.rent + expenses.indiaTransfer + 
+                expenses.others.reduce((sum, exp) => sum + exp.amount, 0);
 
-                return updated;
-            })
-        );
-    };
+            const totalEmiAmount = emis.reduce((sum, emi) => sum + emi.amount, 0);
 
-    /* ----------------------------------------
-       EMI PRIORITY SORTING
-    ------------------------------------------- */
-    const getEmiPriority = (emi) => {
-        let interestBurden =
-            (emi.interestRate / 100) * emi.principalRemaining;
-        let score =
-            interestBurden * 0.6 +
-            emi.principalRemaining * 0.4;
-        return score;
-    };
+            const monthlyBalance = income.monthly - totalExpenses - totalEmiAmount;
 
-    const sortedEmis = [...emis].sort(
-        (a, b) => getEmiPriority(a) - getEmiPriority(b)
-    );
+            const addEmi = () => {
+                if (newEmi.name && newEmi.amount > 0) {
+                    setEmis([...emis, { ...newEmi, id: Date.now() }]);
+                    setNewEmi({
+                        name: '',
+                        amount: 0,
+                        remainingMonths: 0,
+                        totalAmount: 0,
+                        interestRate: 0
+                    });
+                }
+            };
 
-    /* ----------------------------------------
-       CHART DATA
-    ------------------------------------------- */
-    const pieData = [
-        { name: "Rent", value: expenses.rent, fill: "#8b5cf6" },
-        {
-            name: "Home Country Transfer",
-            value: expenses.indiaTransfer,
-            fill: "#3b82f6",
-        },
-        { name: "EMIs", value: totalEmiAmount, fill: "#ef4444" },
-        {
-            name: "Other Expenses",
-            value: totalOtherExpenses,
-            fill: "#f59e0b",
-        },
-        {
-            name: "Savings",
-            value: Math.max(0, monthlyBalance),
-            fill: "#10b981",
-        },
-    ].filter((i) => i.value > 0);
+            const removeEmi = (id) => {
+                setEmis(emis.filter(emi => emi.id !== id));
+            };
 
-    /* ----------------------------------------
-       EMI PAYOFF SUGGESTIONS
-    ------------------------------------------- */
-    const fullyClearable = emis.filter(
-        (e) => e.principalRemaining <= extraPay
-    );
+            const addOtherExpense = () => {
+                if (newExpense.name && newExpense.amount > 0) {
+                    setExpenses({
+                        ...expenses,
+                        others: [...expenses.others, { ...newExpense, id: Date.now() }]
+                    });
+                    setNewExpense({ name: '', amount: 0 });
+                }
+            };
 
-    const bestInterestReduction =
-        emis.length > 0
-            ? [...emis].sort(
-                  (a, b) =>
-                      b.interestRate * b.principalRemaining -
-                      a.interestRate * a.principalRemaining
-              )[0]
-            : null;
+            const removeOtherExpense = (id) => {
+                setExpenses({
+                    ...expenses,
+                    others: expenses.others.filter(exp => exp.id !== id)
+                });
+            };
 
-    const bestMonthlyReduction =
-        emis.length > 0
-            ? [...emis].sort((a, b) => b.amount - a.amount)[0]
-            : null;
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-            <div className="container mx-auto px-4 py-8 max-w-7xl">
-                
-                {/* HEADER */}
-                <div className="glass-effect rounded-2xl p-6 mb-8 shadow-xl">
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                        Personal Finance Tracker
-                    </h1>
-                    <p className="text-gray-600">
-                        Track income, expenses, EMIs & reduce interest smartly
-                    </p>
-                </div>
+            const getEmiPriority = (emi) => {
+                const remainingAmount = emi.totalAmount - (emi.totalAmount - emi.amount * emi.remainingMonths);
+                const interestBurden = emi.interestRate * emi.remainingMonths;
+                const score = (remainingAmount * 0.4) + (interestBurden * 0.6);
+                return score;
+            };
 
-                {/* TABS */}
-                <div className="flex gap-2 mb-6 flex-wrap">
-                    {["dashboard", "income", "expenses", "emis", "insights"].map(
-                        (tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`px-6 py-3 rounded-xl font-medium transition-all capitalize ${
-                                    activeTab === tab
-                                        ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
-                                        : "glass-effect text-gray-700 hover:shadow-md"
-                                }`}
-                            >
-                                {tab}
-                            </button>
-                        )
-                    )}
-                </div>
+            const sortedEmis = [...emis].sort((a, b) => getEmiPriority(a) - getEmiPriority(b));
 
-                {/* DASHBOARD */}
-                {activeTab === "dashboard" && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        
-                        {/* Income */}
-                        <div className="glass-effect rounded-xl p-6 shadow-lg">
-                            <span className="text-gray-600">Monthly Income</span>
-                            <p className="text-3xl font-bold text-green-600">
-                                {formatCurrency(income.monthly)}
-                            </p>
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: income.currency,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                }).format(amount);
+            };
+
+            const pieData = [
+                { name: 'Rent', value: expenses.rent, fill: '#8b5cf6' },
+                { name: 'Home Country Transfer', value: expenses.indiaTransfer, fill: '#3b82f6' },
+                { name: 'EMIs', value: totalEmiAmount, fill: '#ef4444' },
+                { name: 'Other Expenses', value: expenses.others.reduce((sum, exp) => sum + exp.amount, 0), fill: '#f59e0b' },
+                { name: 'Savings', value: Math.max(0, monthlyBalance), fill: '#10b981' }
+            ].filter(item => item.value > 0);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+                    <div className="container mx-auto px-4 py-8 max-w-7xl">
+                        {/* Header */}
+                        <div className="glass-effect rounded-2xl p-6 mb-8 shadow-xl">
+                            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                                Personal Finance Tracker
+                            </h1>
+                            <p className="text-gray-600">Track your income, expenses, remittances, and EMIs in one place</p>
                         </div>
 
-                        {/* Total Expenses */}
-                        <div className="glass-effect rounded-xl p-6 shadow-lg">
-                            <span className="text-gray-600">Total Expenses</span>
-                            <p className="text-3xl font-bold text-red-600">
-                                {formatCurrency(totalExpenses + totalEmiAmount)}
-                            </p>
-                        </div>
-
-                        {/* EMIs */}
-                        <div className="glass-effect rounded-xl p-6 shadow-lg">
-                            <span className="text-gray-600">Monthly EMIs</span>
-                            <p className="text-3xl font-bold text-orange-600">
-                                {formatCurrency(totalEmiAmount)}
-                            </p>
-                        </div>
-
-                        {/* Balance */}
-                        <div className="glass-effect rounded-xl p-6 shadow-lg">
-                            <span className="text-gray-600">Monthly Balance</span>
-                            <p
-                                className={`text-3xl font-bold ${
-                                    monthlyBalance >= 0
-                                        ? "text-blue-600"
-                                        : "text-red-600"
-                                }`}
-                            >
-                                {formatCurrency(monthlyBalance)}
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* INCOME TAB */}
-                {activeTab === "income" && (
-                    <div className="glass-effect rounded-xl p-8 shadow-xl">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                            Monthly Income
-                        </h2>
-
-                        <label className="block mb-2 font-medium">Income</label>
-                        <input
-                            type="number"
-                            value={income.monthly}
-                            onChange={(e) =>
-                                setIncome({
-                                    ...income,
-                                    monthly: parseFloat(e.target.value) || 0,
-                                })
-                            }
-                            className="w-full p-3 border rounded-lg mb-4"
-                        />
-
-                        <label className="block mb-2 font-medium">Currency</label>
-                        <select
-                            value={income.currency}
-                            onChange={(e) =>
-                                setIncome({ ...income, currency: e.target.value })
-                            }
-                            className="w-full p-3 border rounded-lg"
-                        >
-                            <option value="USD">USD</option>
-                            <option value="INR">INR</option>
-                            <option value="EUR">EUR</option>
-                            <option value="GBP">GBP</option>
-                            <option value="AED">AED</option>
-                            <option value="SAR">SAR</option>
-                        </select>
-                    </div>
-                )}
-
-                {/* EXPENSE TAB */}
-                {activeTab === "expenses" && (
-                    <div className="space-y-6">
-                        <div className="glass-effect rounded-xl p-8 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                                Fixed Expenses
-                            </h2>
-
-                            <label className="block mb-2">Rent</label>
-                            <input
-                                type="number"
-                                value={expenses.rent}
-                                onChange={(e) =>
-                                    setExpenses({
-                                        ...expenses,
-                                        rent: parseFloat(e.target.value) || 0,
-                                    })
-                                }
-                                className="w-full p-3 border rounded-lg mb-4"
-                            />
-
-                            <label className="block mb-2">Home Transfer</label>
-                            <input
-                                type="number"
-                                value={expenses.indiaTransfer}
-                                onChange={(e) =>
-                                    setExpenses({
-                                        ...expenses,
-                                        indiaTransfer: parseFloat(e.target.value) || 0,
-                                    })
-                                }
-                                className="w-full p-3 border rounded-lg"
-                            />
-                        </div>
-
-                        <div className="glass-effect rounded-xl p-8 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                                Other Expenses
-                            </h2>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <input
-                                    type="text"
-                                    placeholder="Name"
-                                    value={newExpense.name}
-                                    onChange={(e) =>
-                                        setNewExpense({
-                                            ...newExpense,
-                                            name: e.target.value,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <input
-                                    type="number"
-                                    placeholder="Amount"
-                                    value={newExpense.amount}
-                                    onChange={(e) =>
-                                        setNewExpense({
-                                            ...newExpense,
-                                            amount:
-                                                parseFloat(e.target.value) || 0,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
+                        {/* Tabs */}
+                        <div className="flex gap-2 mb-6 flex-wrap">
+                            {['dashboard', 'income', 'expenses', 'emis', 'insights'].map((tab) => (
                                 <button
-                                    onClick={addOtherExpense}
-                                    className="bg-purple-600 text-white rounded-lg p-3"
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={`px-6 py-3 rounded-xl font-medium transition-all capitalize ${
+                                        activeTab === tab 
+                                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                                            : 'glass-effect text-gray-700 hover:shadow-md'
+                                    }`}
                                 >
-                                    Add
+                                    {tab}
                                 </button>
-                            </div>
+                            ))}
+                        </div>
 
-                            {expenses.others.length > 0 && (
-                                <div className="mt-6 space-y-3">
-                                    {expenses.others.map((e) => (
-                                        <div
-                                            key={e.id}
-                                            className="flex justify-between p-3 bg-gray-50 rounded-lg"
+                        {/* Dashboard Tab */}
+                        {activeTab === 'dashboard' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                <div className="glass-effect rounded-xl p-6 shadow-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-gray-600">Monthly Income</span>
+                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-3xl font-bold text-green-600">{formatCurrency(income.monthly)}</p>
+                                </div>
+
+                                <div className="glass-effect rounded-xl p-6 shadow-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-gray-600">Total Expenses</span>
+                                        <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-3xl font-bold text-red-600">{formatCurrency(totalExpenses + totalEmiAmount)}</p>
+                                </div>
+
+                                <div className="glass-effect rounded-xl p-6 shadow-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-gray-600">Monthly EMIs</span>
+                                        <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-3xl font-bold text-orange-600">{formatCurrency(totalEmiAmount)}</p>
+                                </div>
+
+                                <div className="glass-effect rounded-xl p-6 shadow-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-gray-600">Monthly Balance</span>
+                                        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                        </svg>
+                                    </div>
+                                    <p className={`text-3xl font-bold ${monthlyBalance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                        {formatCurrency(monthlyBalance)}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Income Tab */}
+                        {activeTab === 'income' && (
+                            <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                <h2 className="text-2xl font-bold mb-6 text-gray-800">Monthly Income Settings</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Monthly Income Amount
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={income.monthly}
+                                            onChange={(e) => setIncome({ ...income, monthly: parseFloat(e.target.value) || 0 })}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            placeholder="Enter your monthly income"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            Currency
+                                        </label>
+                                        <select
+                                            value={income.currency}
+                                            onChange={(e) => setIncome({ ...income, currency: e.target.value })}
+                                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         >
-                                            <span>{e.name}</span>
-                                            <span>{formatCurrency(e.amount)}</span>
+                                            <option value="USD">USD ($)</option>
+                                            <option value="EUR">EUR (€)</option>
+                                            <option value="GBP">GBP (£)</option>
+                                            <option value="INR">INR (₹)</option>
+                                            <option value="AED">AED (د.إ)</option>
+                                            <option value="SAR">SAR (﷼)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Expenses Tab */}
+                        {activeTab === 'expenses' && (
+                            <div className="space-y-6">
+                                <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Fixed Expenses</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Monthly Rent
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={expenses.rent}
+                                                onChange={(e) => setExpenses({ ...expenses, rent: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                placeholder="Enter monthly rent"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Money to Home Country
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={expenses.indiaTransfer}
+                                                onChange={(e) => setExpenses({ ...expenses, indiaTransfer: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                placeholder="Enter amount sent to home country"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Other Expenses</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                        <div>
+                                            <label htmlFor="expense-name" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Expense Name
+                                            </label>
+                                            <input
+                                                id="expense-name"
+                                                type="text"
+                                                value={newExpense.name}
+                                                onChange={(e) => setNewExpense({ ...newExpense, name: e.target.value })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500"
+                                                placeholder="e.g., Groceries, Internet, etc."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="expense-amount" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Amount
+                                            </label>
+                                            <input
+                                                id="expense-amount"
+                                                type="number"
+                                                value={newExpense.amount}
+                                                onChange={(e) => setNewExpense({ ...newExpense, amount: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500"
+                                                placeholder="Enter amount"
+                                            />
+                                        </div>
+                                        <div className="flex items-end">
                                             <button
-                                                onClick={() =>
-                                                    removeOtherExpense(e.id)
-                                                }
-                                                className="text-red-600"
+                                                onClick={addOtherExpense}
+                                                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg transition-all"
                                             >
-                                                Delete
+                                                Add Expense
                                             </button>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* EMIS TAB */}
-                {activeTab === "emis" && (
-                    <div className="space-y-6">
-
-                        {/* Add EMI */}
-                        <div className="glass-effect rounded-xl p-8 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6">Add EMI</h2>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-                                <input
-                                    type="text"
-                                    placeholder="EMI Name"
-                                    value={newEmi.name}
-                                    onChange={(e) =>
-                                        setNewEmi({
-                                            ...newEmi,
-                                            name: e.target.value,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <input
-                                    type="number"
-                                    placeholder="Monthly EMI"
-                                    value={newEmi.amount}
-                                    onChange={(e) =>
-                                        setNewEmi({
-                                            ...newEmi,
-                                            amount:
-                                                parseFloat(e.target.value) || 0,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <input
-                                    type="number"
-                                    placeholder="Remaining Months"
-                                    value={newEmi.remainingMonths}
-                                    onChange={(e) =>
-                                        setNewEmi({
-                                            ...newEmi,
-                                            remainingMonths:
-                                                parseInt(e.target.value) || 0,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <input
-                                    type="number"
-                                    placeholder="Principal Remaining"
-                                    value={newEmi.principalRemaining}
-                                    onChange={(e) =>
-                                        setNewEmi({
-                                            ...newEmi,
-                                            principalRemaining:
-                                                parseFloat(e.target.value) || 0,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <input
-                                    type="number"
-                                    placeholder="Interest Rate %"
-                                    value={newEmi.interestRate}
-                                    onChange={(e) =>
-                                        setNewEmi({
-                                            ...newEmi,
-                                            interestRate:
-                                                parseFloat(e.target.value) || 0,
-                                        })
-                                    }
-                                    className="p-3 border rounded-lg"
-                                />
-
-                                <button
-                                    onClick={addEmi}
-                                    className="bg-red-600 text-white rounded-lg p-3"
-                                >
-                                    Add EMI
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Current EMIs */}
-                        <div className="glass-effect rounded-xl p-8 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6">Current EMIs</h2>
-
-                            {emis.length === 0 && (
-                                <p className="text-gray-500 text-center py-8">
-                                    No EMIs added yet
-                                </p>
-                            )}
-
-                            {emis.length > 0 && (
-                                <div className="space-y-4">
-                                    {emis.map((emi) => (
-                                        <div
-                                            key={emi.id}
-                                            className="border rounded-lg p-4 bg-white"
-                                        >
-                                            <div className="flex justify-between">
-                                                <div>
-                                                    <h3 className="font-bold text-lg">
-                                                        {emi.name}
-                                                    </h3>
-                                                    <p>
-                                                        EMI:{" "}
-                                                        {formatCurrency(emi.amount)}
-                                                    </p>
-                                                    <p>
-                                                        Months:{" "}
-                                                        {emi.remainingMonths}
-                                                    </p>
-                                                    <p>
-                                                        Principal Left:{" "}
-                                                        {formatCurrency(
-                                                            emi.principalRemaining
-                                                        )}
-                                                    </p>
-                                                    <p>
-                                                        Interest Rate:{" "}
-                                                        {emi.interestRate}%
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex gap-3">
-                                                    <button
-                                                        className="text-blue-600"
-                                                        onClick={() =>
-                                                            updateEmiField(
-                                                                emi.id,
-                                                                "isEditing",
-                                                                !emi.isEditing
-                                                            )
-                                                        }
-                                                    >
-                                                        Edit
-                                                    </button>
-
-                                                    <button
-                                                        className="text-red-600"
-                                                        onClick={() =>
-                                                            removeEmi(emi.id)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Edit Mode */}
-                                            {emi.isEditing && (
-                                                <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-                                                    <input
-                                                        type="number"
-                                                        value={emi.amount}
-                                                        onChange={(e) =>
-                                                            updateEmiField(
-                                                                emi.id,
-                                                                "amount",
-                                                                parseFloat(
-                                                                    e.target.value
-                                                                )
-                                                            )
-                                                        }
-                                                        className="p-2 border rounded"
-                                                    />
-                                                    <input
-                                                        type="number"
-                                                        value={
-                                                            emi.remainingMonths
-                                                        }
-                                                        onChange={(e) =>
-                                                            updateEmiField(
-                                                                emi.id,
-                                                                "remainingMonths",
-                                                                parseInt(
-                                                                    e.target.value
-                                                                )
-                                                            )
-                                                        }
-                                                        className="p-2 border rounded"
-                                                    />
-                                                    <input
-                                                        type="number"
-                                                        value={
-                                                            emi.principalRemaining
-                                                        }
-                                                        onChange={(e) =>
-                                                            updateEmiField(
-                                                                emi.id,
-                                                                "principalRemaining",
-                                                                parseFloat(
-                                                                    e.target.value
-                                                                )
-                                                            )
-                                                        }
-                                                        className="p-2 border rounded"
-                                                    />
-
-                                                    <button
-                                                        onClick={() =>
-                                                            recalcEmi(emi.id)
-                                                        }
-                                                        className="bg-green-600 text-white rounded p-2"
-                                                    >
-                                                        Recalculate
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* INSIGHTS TAB */}
-                {activeTab === "insights" && (
-                    <div className="space-y-6">
-
-                        <div className="glass-effect rounded-xl p-8 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6">
-                                Insights & Strategy
-                            </h2>
-
-                            {/* Savings Rate */}
-                            <div className="mb-8">
-                                <h3 className="text-lg font-semibold mb-3">
-                                    Savings Rate
-                                </h3>
-
-                                <div className="flex items-center gap-4">
-                                    <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
-                                        <div
-                                            className="absolute top-0 left-0 h-full bg-green-500 rounded-full"
-                                            style={{
-                                                width: `${
-                                                    income.monthly > 0
-                                                        ? Math.max(
-                                                              0,
-                                                              Math.min(
-                                                                  100,
-                                                                  (monthlyBalance /
-                                                                      income.monthly) *
-                                                                      100
-                                                              )
-                                                          )
-                                                        : 0
-                                                }%`,
-                                            }}
-                                        ></div>
                                     </div>
 
-                                    <span className="font-bold">
-                                        {income.monthly > 0
-                                            ? Math.round(
-                                                  (monthlyBalance /
-                                                      income.monthly) *
-                                                      100
-                                              )
-                                            : 0}
-                                        %
-                                    </span>
+                                    {expenses.others.length > 0 && (
+                                        <div className="space-y-2">
+                                            {expenses.others.map((expense) => (
+                                                <div key={expense.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                    <span className="font-medium">{expense.name}</span>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="font-bold text-purple-600">{formatCurrency(expense.amount)}</span>
+                                                        <button
+                                                            onClick={() => removeOtherExpense(expense.id)}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-
-                                <p className="text-sm text-gray-600 mt-2">
-                                    {monthlyBalance >= 0
-                                        ? `Saving ${formatCurrency(
-                                              monthlyBalance
-                                          )} per month`
-                                        : `Overspending by ${formatCurrency(
-                                              Math.abs(monthlyBalance)
-                                          )}`}
-                                </p>
                             </div>
+                        )}
 
-                            {/* EMI Strategy */}
-                            {sortedEmis.length > 0 && (
-                                <div className="mb-8">
-                                    <h3 className="text-lg font-semibold mb-3">
-                                        EMI Priority (Recommended Closure Order)
-                                    </h3>
-
-                                    <ol className="space-y-2">
-                                        {sortedEmis.map((emi, idx) => (
-                                            <li
-                                                key={emi.id}
-                                                className="flex items-center gap-3"
+                        {/* EMIs Tab */}
+                        {activeTab === 'emis' && (
+                            <div className="space-y-6">
+                                <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New EMI</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <div>
+                                            <label htmlFor="emi-name" className="block text-sm font-medium text-gray-700 mb-2">
+                                                EMI Name
+                                            </label>
+                                            <input
+                                                id="emi-name"
+                                                type="text"
+                                                value={newEmi.name}
+                                                onChange={(e) => setNewEmi({ ...newEmi, name: e.target.value })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500"
+                                                placeholder="e.g., Car Loan, Home Loan"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="emi-amount" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Monthly EMI Amount
+                                            </label>
+                                            <input
+                                                id="emi-amount"
+                                                type="number"
+                                                value={newEmi.amount}
+                                                onChange={(e) => setNewEmi({ ...newEmi, amount: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter monthly payment"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="emi-months" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Remaining Months
+                                            </label>
+                                            <input
+                                                id="emi-months"
+                                                type="number"
+                                                value={newEmi.remainingMonths}
+                                                onChange={(e) => setNewEmi({ ...newEmi, remainingMonths: parseInt(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500"
+                                                placeholder="Months left to pay"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="emi-total" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Total Loan Amount
+                                            </label>
+                                            <input
+                                                id="emi-total"
+                                                type="number"
+                                                value={newEmi.totalAmount}
+                                                onChange={(e) => setNewEmi({ ...newEmi, totalAmount: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500"
+                                                placeholder="Original loan amount"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label htmlFor="emi-interest" className="block text-sm font-medium text-gray-700 mb-2">
+                                                Interest Rate (%)
+                                            </label>
+                                            <input
+                                                id="emi-interest"
+                                                type="number"
+                                                step="0.1"
+                                                value={newEmi.interestRate}
+                                                onChange={(e) => setNewEmi({ ...newEmi, interestRate: parseFloat(e.target.value) || 0 })}
+                                                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-500"
+                                                placeholder="Annual interest rate"
+                                            />
+                                        </div>
+                                        <div className="flex items-end">
+                                            <button
+                                                onClick={addEmi}
+                                                className="w-full px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:shadow-lg transition-all"
                                             >
-                                                <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center">
-                                                    {idx + 1}
-                                                </span>
-                                                <span className="font-medium">
-                                                    {emi.name} —{" "}
-                                                    {formatCurrency(
-                                                        emi.principalRemaining
-                                                    )}
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </div>
-                            )}
-
-                            {/* Extra Payment Advice */}
-                            <div className="mt-10 bg-white p-6 rounded-xl shadow">
-                                <h3 className="text-xl font-bold mb-4">
-                                    Reduce EMI / Interest
-                                </h3>
-
-                                <label className="block font-medium mb-2">
-                                    How much extra can you pay?
-                                </label>
-
-                                <input
-                                    type="number"
-                                    value={extraPay}
-                                    onChange={(e) =>
-                                        setExtraPay(
-                                            parseFloat(e.target.value) || 0
-                                        )
-                                    }
-                                    className="p-3 border rounded w-full"
-                                    placeholder="Enter lump sum"
-                                />
-
-                                {extraPay > 0 && (
-                                    <div className="mt-6 space-y-6">
-
-                                        {/* Fully Clearable */}
-                                        <div>
-                                            <h4 className="text-green-600 font-semibold mb-2">
-                                                You Can Fully Close:
-                                            </h4>
-
-                                            {fullyClearable.length === 0 ? (
-                                                <p className="text-gray-500">
-                                                    None can be fully closed
-                                                </p>
-                                            ) : (
-                                                fullyClearable.map((e) => (
-                                                    <p
-                                                        key={e.id}
-                                                        className="text-green-700 font-medium"
-                                                    >
-                                                        ✔ {e.name} —{" "}
-                                                        {formatCurrency(
-                                                            e.principalRemaining
-                                                        )}
-                                                    </p>
-                                                ))
-                                            )}
-                                        </div>
-
-                                        {/* Best Interest Reduction */}
-                                        <div>
-                                            <h4 className="text-blue-600 font-semibold mb-2">
-                                                Best EMI to Reduce Interest:
-                                            </h4>
-
-                                            <p className="text-blue-800 font-medium">
-                                                {bestInterestReduction
-                                                    ? bestInterestReduction.name
-                                                    : "No EMIs"}
-                                            </p>
-                                        </div>
-
-                                        {/* Best Monthly EMI Reduction */}
-                                        <div>
-                                            <h4 className="text-purple-600 font-semibold mb-2">
-                                                Best EMI to Reduce Monthly EMI:
-                                            </h4>
-
-                                            <p className="text-purple-800 font-medium">
-                                                {bestMonthlyReduction
-                                                    ? bestMonthlyReduction.name
-                                                    : "No EMIs"}
-                                            </p>
+                                                Add EMI
+                                            </button>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+                                </div>
 
-ReactDOM.render(<FinanceTracker />, document.getElementById("root"));
-</script>
+                                <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Current EMIs</h2>
+                                    {emis.length === 0 ? (
+                                        <p className="text-gray-500 text-center py-8">No EMIs added yet</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {emis.map((emi) => {
+                                                const remainingAmount = emi.amount * emi.remainingMonths;
+                                                const principalPaid = emi.totalAmount > 0 ? emi.totalAmount - remainingAmount : 0;
+                                                const progressPercentage = emi.totalAmount > 0 ? (principalPaid / emi.totalAmount) * 100 : 0;
+                                                
+                                                return (
+                                                    <div key={emi.id} className="border rounded-lg p-4 hover:shadow-md transition-all">
+                                                        <div className="flex items-start justify-between">
+                                                            <div className="flex-1">
+                                                                <h3 className="font-bold text-lg mb-3">{emi.name}</h3>
+                                                                
+                                                                {/* Progress Bar */}
+                                                                {emi.totalAmount > 0 && (
+                                                                    <div className="mb-4">
+                                                                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                                                            <span>Paid: {formatCurrency(principalPaid)}</span>
+                                                                            <span>{progressPercentage.toFixed(1)}% Complete</span>
+                                                                        </div>
+                                                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                            <div 
+                                                                                className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
+                                                                                style={{ width: `${progressPercentage}%` }}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                
+                                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
+                                                                    <div>
+                                                                        <span className="text-gray-600">Monthly EMI:</span>
+                                                                        <p className="font-semibold">{formatCurrency(emi.amount)}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-gray-600">Principal Amount:</span>
+                                                                        <p className="font-semibold text-blue-600">{formatCurrency(emi.totalAmount)}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-gray-600">Principal Paid:</span>
+                                                                        <p className="font-semibold text-green-600">{formatCurrency(principalPaid)}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-gray-600">Principal Remaining:</span>
+                                                                        <p className="font-semibold text-orange-600">{formatCurrency(remainingAmount)}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-gray-600">Months Left:</span>
+                                                                        <p className="font-semibold">{emi.remainingMonths}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-gray-600">Interest Rate:</span>
+                                                                        <p className="font-semibold">{emi.interestRate}%</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => removeEmi(emi.id)}
+                                                                className="ml-4 text-red-500 hover:text-red-700"
+                                                            >
+                                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Insights Tab */}
+                        {activeTab === 'insights' && (
+                            <div className="space-y-6">
+                                <div className="glass-effect rounded-xl p-8 shadow-xl">
+                                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Financial Insights</h2>
+                                    
+                                    {/* Savings Rate */}
+                                    <div className="mb-8">
+                                        <h3 className="text-lg font-semibold mb-3">Savings Rate</h3>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1 bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                                                <div 
+                                                    className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full transition-all"
+                                                    style={{ width: `${Math.max(0, Math.min(100, (monthlyBalance / income.monthly) * 100))}%` }}
+                                                />
+                                            </div>
+                                            <span className="font-bold text-lg">
+                                                {income.monthly > 0 ? Math.round((monthlyBalance / income.monthly) * 100) : 0}%
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mt-2">
+                                            {monthlyBalance >= 0 
+                                                ? `You're saving ${formatCurrency(monthlyBalance)} per month`
+                                                : `You're overspending by ${formatCurrency(Math.abs(monthlyBalance))} per month`
+                                            }
+                                        </p>
+                                    </div>
+
+                                    {/* EMI Recommendations */}
+                                    {sortedEmis.length > 0 && (
+                                        <div className="mb-8">
+                                            <h3 className="text-lg font-semibold mb-3">EMI Close-out Strategy</h3>
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                                <p className="text-sm text-blue-800 mb-3">
+                                                    Recommended order to close EMIs (easiest first):
+                                                </p>
+                                                <ol className="space-y-2">
+                                                    {sortedEmis.map((emi, index) => (
+                                                        <li key={emi.id} className="flex items-center gap-3">
+                                                            <span className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                                {index + 1}
+                                                            </span>
+                                                            <div className="flex-1">
+                                                                <span className="font-medium">{emi.name}</span>
+                                                                <span className="text-sm text-gray-600 ml-2">
+                                                                    ({emi.remainingMonths} months, {formatCurrency(emi.amount * emi.remainingMonths)} remaining)
+                                                                </span>
+                                                            </div>
+                                                        </li>
+                                                    ))}
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Expense Breakdown Chart */}
+                                    <div className="mb-8">
+                                        <h3 className="text-lg font-semibold mb-3">Expense Breakdown</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {pieData.map((item) => (
+                                                <div key={item.name} className="flex items-center gap-2">
+                                                    <div 
+                                                        className="w-4 h-4 rounded"
+                                                        style={{ backgroundColor: item.fill }}
+                                                    />
+                                                    <span className="text-sm">{item.name}:</span>
+                                                    <span className="font-bold text-sm">{formatCurrency(item.value)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Quick Actions */}
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {monthlyBalance > 0 && sortedEmis.length > 0 && sortedEmis[0].amount * sortedEmis[0].remainingMonths <= monthlyBalance * 3 && (
+                                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                                    <p className="text-green-800 font-medium">
+                                                        💡 You could close "{sortedEmis[0].name}" in 3 months with your current savings rate!
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {expenses.others.reduce((sum, exp) => sum + exp.amount, 0) > income.monthly * 0.2 && (
+                                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                                    <p className="text-amber-800 font-medium">
+                                                        ⚠️ Other expenses exceed 20% of income. Consider reviewing discretionary spending.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<FinanceTracker />, document.getElementById('root'));
+    </script>
 </body>
 </html>
