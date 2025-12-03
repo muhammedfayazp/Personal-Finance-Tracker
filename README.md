@@ -42,14 +42,6 @@ python -m http.server 8000
 # Visit http://localhost:8000/income-expense-tracker.html
 ```
 
-### Deploy Your Own
-
-#### Deploy to Vercel
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/personal-finance-tracker)
-
-#### Deploy to Netlify
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/yourusername/personal-finance-tracker)
-
 ## 📖 How to Use
 
 ### 1. Set Your Income
@@ -125,17 +117,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-- **GitHub**: [Your GitHub Profile](https://github.com/yourusername)
-- **Email**: your.email@example.com
-- **Project Link**: [https://github.com/yourusername/personal-finance-tracker](https://github.com/yourusername/personal-finance-tracker)
+- **GitHub**: [Your GitHub Profile](https://github.com/muhammedfayazp)
+- **Email**: mfayaz7@gmail.com
+- **Project Link**: [https://github.com/muhammedfayazp/personal-finance-tracker](https://github.com/muhammedfayazp/personal-finance-tracker)
 
 ---
 
 <div align="center">
 
-Made with ❤️ by [Your Name](https://github.com/yourusername)
+Made with ❤️ by [Your Name](https://github.com/muhammedfayazp)
 
-**[Live Demo](https://personal-finance-tracker-nine-sigma.vercel.app/)** | **[Report Bug](https://github.com/yourusername/personal-finance-tracker/issues)** | **[Request Feature](https://github.com/yourusername/personal-finance-tracker/issues)**
+**[Live Demo](https://personal-finance-tracker-nine-sigma.vercel.app/)** | **[Report Bug](https://github.com/muhammedfayazp/personal-finance-tracker/issues)** | **[Request Feature](https://github.com/muhammedfayazp/personal-finance-tracker/issues)**
 
 ⭐ Star this repo if you find it helpful!
 
